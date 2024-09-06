@@ -113,32 +113,26 @@ class CSGO_Loader:
     CATEGORY = "CSGO_Example_Test"
 
     def test(self,base_cpkt,image_encoder_repo,vae_id,controlnet_repo,csgo_ckpt,num_content_tokens,num_style_tokens):
-
+        if csgo_ckpt=="none" or base_cpkt=="none" :
+            raise "need weight"
+            
         csgo_ckpt=folder_paths.get_full_path("checkpoints",csgo_ckpt) #获取绝对路径
         ckpt_path = folder_paths.get_full_path("checkpoints", base_cpkt)  # 获取绝对路径
         
         #vae = AutoencoderKL.from_pretrained(vae, torch_dtype=torch.float16)
         controlnet = ControlNetModel.from_pretrained(controlnet_repo, torch_dtype=torch.float16, use_safetensors=True)
-        # pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
-        #     base_repo,
-        #     controlnet=controlnet,
-        #     torch_dtype=torch.float16,
-        #     add_watermarker=False,
-        #     vae=vae
-        # )
-        
         vae_id = folder_paths.get_full_path("vae", vae_id)
         vae = AutoencoderKL.from_single_file(vae_id, torch_dtype=torch.float16)
-        
+        model_config = "stabilityai/stable-diffusion-xl-base-1.0"
         original_config_file = os.path.join(node_cur_path, 'configs', 'sd_xl_base.yaml')
         try:
             pipe = StableDiffusionXLControlNetPipeline.from_single_file(
-                ckpt_path, original_config=original_config_file,vae=vae, controlnet=controlnet,
+                ckpt_path,config=model_config, original_config=original_config_file,vae=vae, controlnet=controlnet,
                 torch_dtype=torch.float16)
         except:
             try:
                 pipe = StableDiffusionXLControlNetPipeline.from_single_file(
-                    ckpt_path, original_config_file=original_config_file,vae=vae, controlnet=controlnet,
+                    ckpt_path,config=model_config, original_config_file=original_config_file,vae=vae, controlnet=controlnet,
                     torch_dtype=torch.float16)
             except:
                 raise "load pipe error!,check you diffusers"
