@@ -3,8 +3,6 @@ You can using InstantX's CSGO in comfyUI
 
 **CSGO From: [link](https://github.com/instantX-research/CSGO)**
 
-**Notice**
-* runway is runway，When using the SDXL monolithic model, errors may occur because the “runway” has deleted their model library. The solution is to upgrade to the latest version of diffusers or modify the diffuser code content. The modification method can be found in the link: [link](https://github.com/huggingface/diffusers/commit/d8a16635f47ac455abd61879bcc6be32dfeaa561)
 
 1.Installation
 -----
