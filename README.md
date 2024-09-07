@@ -9,6 +9,8 @@ Update
 **2024/09/07**
 * fix runway loader error, using single clip_vision /controlnet weight now；
 * 修复runway跑路导致的diffuser加载报错，现在直接使用IP adapter的SDXL 图片解码单体模型（请放在clip_vision目录下）和单体controlnet SDLX模型（请放在controlnet目录下）；
+* vae is not necessary,if you get black img ,please using vae  
+* vae并不是必须的，但是如果出现黑图或者解码不正确，才使用；  
 
 1.Installation
 -----
