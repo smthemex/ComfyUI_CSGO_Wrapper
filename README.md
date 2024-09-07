@@ -7,8 +7,8 @@ Update
 ---
 
 **2024/09/07**
-* fix runway loader error, using single clip_vision weight now；
-* 修复runway跑路导致的diffuser加载报错，现在直接使用IP adapter的SDXL 图片解码单体模型，请放在clip_vision目录下；
+* fix runway loader error, using single clip_vision /controlnet weight now；
+* 修复runway跑路导致的diffuser加载报错，现在直接使用IP adapter的SDXL 图片解码单体模型（请放在clip_vision目录下）和单体controlnet SDLX模型（请放在controlnet目录下）；
 
 1.Installation
 -----
@@ -25,8 +25,9 @@ pip install -r requirements.txt
 ```
 3 Need  model 
 ----
-3.1 base SDXl ckpt  and vae and clip_vision      
+3.1 base SDXl ckpt  and vae and clip_vision and controlnet        
  h94/IP-Adapter/sdxl_models [link](https://huggingface.co/h94/IP-Adapter/tree/main/sdxl_models/image_encoder)  
+ TTPlanet/TTPLanet_SDXL_Controlnet_Tile_Realistic [link](https://huggingface.co/TTPlanet/TTPLanet_SDXL_Controlnet_Tile_Realistic)
 no need config   
 ```
 ├── ComfyUI/models/checkpoints/
@@ -34,7 +35,9 @@ no need config
 ├── ComfyUI/models/vae/
 |      ├──any SDXL vae weights  # sdxl.vae.safetensors 
 ├── ComfyUI/models/clip_vision/
-|      ├──model.safetensors  # h94/IP-Adapter/sdxl_models/model.safetensors 
+|      ├──model.safetensors  # h94/IP-Adapter/sdxl_models/model.safetensors
+├── ComfyUI/models/controlnet /
+|      ├──TTPLANET_Controlnet_Tile_realistic_v2_fp16.safetensors  # TTPlanet/TTPLanet_SDXL_Controlnet_Tile_Realistic
 ```
 3.2 main ckpt      
 CSGO models [link](https://huggingface.co/InstantX/CSGO/tree/main)
@@ -44,14 +47,7 @@ CSGO models [link](https://huggingface.co/InstantX/CSGO/tree/main)
 |      ├──acsgo.bin   #need token 4/16
 ```
 
-3.5 controlnet   
-TTPlanet/TTPLanet_SDXL_Controlnet_Tile_Realistic [link](https://huggingface.co/TTPlanet/TTPLanet_SDXL_Controlnet_Tile_Realistic)
-```
-├── any path dir/
-|             ├── diffusion_pytorch_model.safetensors  #rename from "TTPLANET_Controlnet_Tile_realistic_v2_fp16.safetensors"
-|             ├── config.json
-```
-3.6 if using LLM  (unnecessary)   
+3.3 if using LLM  (unnecessary)   
 Salesforce/blip-image-captioning-large  [link](https://huggingface.co/Salesforce/blip-image-captioning-large/tree/main)
 ```
 ├── any path dir/
@@ -63,7 +59,7 @@ Salesforce/blip-image-captioning-large  [link](https://huggingface.co/Salesforce
 |             ├── tokenizer_config.json
 |             ├── vocab.txt
 ```
-or change prompt input using any other LL.
+or change prompt input using any other LLM.
 
 4 Example
 ----
@@ -71,8 +67,8 @@ conternt+style img
 ![](https://github.com/smthemex/ComfyUI_CSGO_Wrapper/blob/main/example/content_style_img.png)  
 style img  + prompt   
 ![](https://github.com/smthemex/ComfyUI_CSGO_Wrapper/blob/main/example/txt_only.png)
-conternt+style img  +llm   
-![](https://github.com/smthemex/ComfyUI_CSGO_Wrapper/blob/main/example/using%20blip.png)
+conternt+style img  +llm   new  最新  
+![](https://github.com/smthemex/ComfyUI_CSGO_Wrapper/blob/main/example/new.png)
 
 
 5 Function Description of Nodes  
