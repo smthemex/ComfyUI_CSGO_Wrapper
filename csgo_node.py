@@ -8,7 +8,7 @@ from omegaconf import OmegaConf
 from diffusers import (
     AutoencoderKL,
     ControlNetModel,
-    StableDiffusionXLControlNetPipeline,
+    StableDiffusionXLControlNetPipeline, StableDiffusionXLPipeline,
 
 )
 from transformers import BlipProcessor, BlipForConditionalGeneration
@@ -17,7 +17,7 @@ from .CSGO.ip_adapter.utils import BLOCKS as BLOCKS
 from .CSGO.ip_adapter.utils import controlnet_BLOCKS as controlnet_BLOCKS
 from .CSGO.ip_adapter.utils import resize_content
 from .CSGO.ip_adapter import CSGO
-
+from safetensors.torch import load_file
 
 import folder_paths
 from comfy.utils import common_upscale
@@ -90,7 +90,7 @@ class CSGO_Loader:
                 "base_cpkt":(["none"]+folder_paths.get_filename_list("checkpoints"),),
                 "clip_vision":(["none"]+folder_paths.get_filename_list("clip_vision"),),
                 "vae_id":(["none"]+folder_paths.get_filename_list("vae"),),
-                "controlnet_repo": ("STRING", {"default": "TTPlanet/TTPLanet_SDXL_Controlnet_Tile_Realistic" }),
+                "controlnet": (["none"]+folder_paths.get_filename_list("controlnet"),),
                 "csgo_ckpt": (["none"]+folder_paths.get_filename_list("checkpoints"),),
                 "num_content_tokens": ("INT", {
                     "default": 4,
@@ -114,32 +114,51 @@ class CSGO_Loader:
     FUNCTION = "test"
     CATEGORY = "CSGO_Wrapper"
 
-    def test(self,base_cpkt,clip_vision,vae_id,controlnet_repo,csgo_ckpt,num_content_tokens,num_style_tokens):
-        if csgo_ckpt=="none" or base_cpkt=="none" :
+    def test(self,base_cpkt,clip_vision,vae_id,controlnet,csgo_ckpt,num_content_tokens,num_style_tokens):
+        if csgo_ckpt=="none" or base_cpkt=="none" or controlnet=="none" or clip_vision=="none" :
             raise "need weight"
             
-        csgo_ckpt=folder_paths.get_full_path("checkpoints",csgo_ckpt) #获取绝对路径
-        ckpt_path = folder_paths.get_full_path("checkpoints", base_cpkt)  # 获取绝对路径
-        clip_vision=folder_paths.get_full_path("clip_vision", clip_vision)  # 获取绝对路径
+        csgo_ckpt=folder_paths.get_full_path("checkpoints",csgo_ckpt)
+        ckpt_path = folder_paths.get_full_path("checkpoints", base_cpkt)
+        clip_vision=folder_paths.get_full_path("clip_vision", clip_vision)
+        controlnet_path=folder_paths.get_full_path("controlnet", controlnet)
         img_encoder=load(clip_vision)
         model_config = os.path.join(node_cur_path, "local_repo")
         original_config_file = os.path.join(node_cur_path, 'configs', 'sd_xl_base.yaml')
-        controlnet = ControlNetModel.from_pretrained(controlnet_repo, torch_dtype=torch.float16, use_safetensors=True)
-        vae_id = folder_paths.get_full_path("vae", vae_id)
-        vae_config = os.path.join(node_cur_path, "local_repo","vae")
-        vae = AutoencoderKL.from_single_file(vae_id, config=vae_config,torch_dtype=torch.float16)
+           
         try:
-            pipe = StableDiffusionXLControlNetPipeline.from_single_file(
-                ckpt_path,config=model_config, original_config=original_config_file,vae=vae, controlnet=controlnet,
+            pipe = StableDiffusionXLPipeline.from_single_file(
+                ckpt_path, config=model_config, original_config=original_config_file, controlnet=controlnet,
                 torch_dtype=torch.float16)
         except:
             try:
-                pipe = StableDiffusionXLControlNetPipeline.from_single_file(
-                    ckpt_path,config=model_config, original_config_file=original_config_file,vae=vae, controlnet=controlnet,
+                pipe = StableDiffusionXLPipeline.from_single_file(
+                    ckpt_path, config=model_config, original_config_file=original_config_file, 
+                    controlnet=controlnet,
                     torch_dtype=torch.float16)
             except:
                 raise "load pipe error!,check you diffusers"
         
+        controlnet = ControlNetModel.from_unet(pipe.unet)
+        cn_state_dict = load_file(controlnet_path, device="cpu")
+        controlnet.load_state_dict(cn_state_dict, strict=False)
+        controlnet.to(torch.float16)
+        
+        try:
+            pipe = StableDiffusionXLControlNetPipeline.from_single_file(
+                ckpt_path,unet=pipe.unet,config=model_config, original_config=original_config_file, controlnet=controlnet,
+                torch_dtype=torch.float16)
+        except:
+            try:
+                pipe = StableDiffusionXLControlNetPipeline.from_single_file(
+                    ckpt_path,unet=pipe.unet,config=model_config, original_config_file=original_config_file,controlnet=controlnet,
+                    torch_dtype=torch.float16)
+            except:
+                raise "load pipe error!,check you diffusers"
+        if vae_id!="none":
+            vae_id = folder_paths.get_full_path("vae", vae_id)
+            vae_config = os.path.join(node_cur_path, "local_repo", "vae")
+            pipe.vae = AutoencoderKL.from_single_file(vae_id, config=vae_config, torch_dtype=torch.float16)
         pipe.enable_vae_tiling()
         pipe.enable_freeu(s1=0.6, s2=0.4, b1=1.1, b2=1.2)
         if device != "mps":
