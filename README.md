@@ -72,7 +72,7 @@ conternt+style img
 style img  + prompt   
 ![](https://github.com/smthemex/ComfyUI_CSGO_Wrapper/blob/main/example/txt_only.png)
 conternt+style img  +llm   
-![](https://github.com/smthemex/ComfyUI_CSGO_Wrapper/blob/main/example/using blip.png)
+![](https://github.com/smthemex/ComfyUI_CSGO_Wrapper/blob/main/example/using%20blip.png)
 
 
 5 Function Description of Nodes  
