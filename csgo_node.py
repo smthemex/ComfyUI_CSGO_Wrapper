@@ -3,10 +3,8 @@
 import os
 import numpy as np
 import torch
-import cv2
 from PIL import Image
-
-from transformers import AutoImageProcessor, AutoModel
+from omegaconf import OmegaConf
 from diffusers import (
     AutoencoderKL,
     ControlNetModel,
@@ -19,12 +17,16 @@ from .CSGO.ip_adapter.utils import BLOCKS as BLOCKS
 from .CSGO.ip_adapter.utils import controlnet_BLOCKS as controlnet_BLOCKS
 from .CSGO.ip_adapter.utils import resize_content
 from .CSGO.ip_adapter import CSGO
-MAX_SEED = np.iinfo(np.int32).max
+
+
 import folder_paths
 from comfy.utils import common_upscale
+from comfy.clip_vision import  load
+
+MAX_SEED = np.iinfo(np.int32).max
+
 
 node_cur_path = os.path.dirname(os.path.abspath(__file__))
-#device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #cuda:0
 device = (
     "cuda"
     if torch.cuda.is_available()
@@ -69,7 +71,7 @@ class Blip_Loader:
     RETURN_TYPES = ("MODEL", "MODEL",)
     RETURN_NAMES = ("blip_processor", "blip_model",)
     FUNCTION = "test"
-    CATEGORY = "CSGO_Example_Test"
+    CATEGORY = "CSGO_Wrapper"
 
     def test(self, blip_repo,):
         blip_processor = BlipProcessor.from_pretrained(blip_repo)
@@ -86,7 +88,7 @@ class CSGO_Loader:
         return {
             "required": {
                 "base_cpkt":(["none"]+folder_paths.get_filename_list("checkpoints"),),
-                "image_encoder_repo": ("STRING", {"default": "h94/IP-Adapter"}),
+                "clip_vision":(["none"]+folder_paths.get_filename_list("clip_vision"),),
                 "vae_id":(["none"]+folder_paths.get_filename_list("vae"),),
                 "controlnet_repo": ("STRING", {"default": "TTPlanet/TTPLanet_SDXL_Controlnet_Tile_Realistic" }),
                 "csgo_ckpt": (["none"]+folder_paths.get_filename_list("checkpoints"),),
@@ -110,21 +112,22 @@ class CSGO_Loader:
     RETURN_TYPES = ("MODEL",)
     RETURN_NAMES = ("csgo",)
     FUNCTION = "test"
-    CATEGORY = "CSGO_Example_Test"
+    CATEGORY = "CSGO_Wrapper"
 
-    def test(self,base_cpkt,image_encoder_repo,vae_id,controlnet_repo,csgo_ckpt,num_content_tokens,num_style_tokens):
+    def test(self,base_cpkt,clip_vision,vae_id,controlnet_repo,csgo_ckpt,num_content_tokens,num_style_tokens):
         if csgo_ckpt=="none" or base_cpkt=="none" :
             raise "need weight"
             
         csgo_ckpt=folder_paths.get_full_path("checkpoints",csgo_ckpt) #获取绝对路径
         ckpt_path = folder_paths.get_full_path("checkpoints", base_cpkt)  # 获取绝对路径
-        
-        #vae = AutoencoderKL.from_pretrained(vae, torch_dtype=torch.float16)
+        clip_vision=folder_paths.get_full_path("clip_vision", clip_vision)  # 获取绝对路径
+        img_encoder=load(clip_vision)
+        model_config = os.path.join(node_cur_path, "local_repo")
+        original_config_file = os.path.join(node_cur_path, 'configs', 'sd_xl_base.yaml')
         controlnet = ControlNetModel.from_pretrained(controlnet_repo, torch_dtype=torch.float16, use_safetensors=True)
         vae_id = folder_paths.get_full_path("vae", vae_id)
-        vae = AutoencoderKL.from_single_file(vae_id, torch_dtype=torch.float16)
-        model_config = "stabilityai/stable-diffusion-xl-base-1.0"
-        original_config_file = os.path.join(node_cur_path, 'configs', 'sd_xl_base.yaml')
+        vae_config = os.path.join(node_cur_path, "local_repo","vae")
+        vae = AutoencoderKL.from_single_file(vae_id, config=vae_config,torch_dtype=torch.float16)
         try:
             pipe = StableDiffusionXLControlNetPipeline.from_single_file(
                 ckpt_path,config=model_config, original_config=original_config_file,vae=vae, controlnet=controlnet,
@@ -138,7 +141,6 @@ class CSGO_Loader:
                 raise "load pipe error!,check you diffusers"
         
         pipe.enable_vae_tiling()
-        #pipe.to(device)
         pipe.enable_freeu(s1=0.6, s2=0.4, b1=1.1, b2=1.2)
         if device != "mps":
             pipe.enable_model_cpu_offload()
@@ -147,8 +149,10 @@ class CSGO_Loader:
         target_style_blocks = BLOCKS['style']
         controlnet_target_content_blocks = controlnet_BLOCKS['content']
         controlnet_target_style_blocks = controlnet_BLOCKS['style']
-        
-        csgo = CSGO(pipe, image_encoder_repo, csgo_ckpt, device, num_content_tokens=num_content_tokens, num_style_tokens=num_style_tokens,
+        config_path = os.path.join(node_cur_path, "configs", "config.json")
+        image_encoder_config = OmegaConf.load(config_path)
+       
+        csgo = CSGO(pipe, img_encoder, csgo_ckpt, device, image_encoder_config,num_content_tokens=num_content_tokens, num_style_tokens=num_style_tokens,
                     target_content_blocks=target_content_blocks, target_style_blocks=target_style_blocks,
                     controlnet_adapter=True,
                     controlnet_target_content_blocks=controlnet_target_content_blocks,
@@ -220,7 +224,7 @@ class CSGO_Sampler:
                     "display": "number",
                 }),
                 "steps": ("INT", {
-                    "default": 50,
+                    "default": 25,
                     "min": 1,  # Minimum value
                     "max": 100,  # Maximum value
                     "step": 1,  # Slider's step
@@ -251,7 +255,7 @@ class CSGO_Sampler:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("images",)
     FUNCTION = "test"
-    CATEGORY = "CSGO_Example_Test"
+    CATEGORY = "CSGO_Wrapper"
     
     def test(self,content_image,style_image, csgo, prompt,negative_prompt,num_sample, width,height,content_scale,style_scale,cfg,steps,seed,controlnet_scale,text_only,**kwargs):
         
@@ -259,9 +263,15 @@ class CSGO_Sampler:
         blip_model=kwargs.get("blip_model",None)
         
         #向量转图片
-        style_image= tensor2pil(style_image)
+        #style_image= tensor2pil(style_image)
         #content_image= tensor2pil(content_image)
-        content_image = tensor_upscale2pil(content_image, width, height)
+        content_image_pil = tensor_upscale2pil(content_image, width, height)
+        style_image =tensor_upscale(style_image, width, height)  # torch tensor
+
+        content_image=tensor_upscale(content_image, width, height)  # torch tensor
+        
+        
+        
         #clip vison
         if blip_processor and blip_model:  #判断模型是否存在，不存在则跑文本驱动流程
             with torch.no_grad():
@@ -274,8 +284,11 @@ class CSGO_Sampler:
         else:
             caption = prompt
             if text_only:
-                content_image = Image.fromarray(
-                    np.zeros((content_image.size[0], content_image.size[1], 3), dtype=np.uint8)).convert('RGB')
+                content_image_pil = Image.fromarray(
+                    np.zeros((content_image_pil.size[0], content_image_pil.size[1], 3), dtype=np.uint8)).convert('RGB')
+                content_image=pil2narry(content_image_pil)
+                
+                
         
         #width, height, content_image = resize_content(content_image)#?
         
@@ -291,7 +304,7 @@ class CSGO_Sampler:
                                num_samples=num_sample,
                                num_inference_steps=steps,
                                seed=seed,
-                               image=content_image.convert('RGB'),
+                               image= content_image_pil,
                                controlnet_conditioning_scale=controlnet_scale,
                                )[0]
         images=pil2narry(images)
