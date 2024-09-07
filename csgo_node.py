@@ -128,13 +128,12 @@ class CSGO_Loader:
            
         try:
             pipe = StableDiffusionXLPipeline.from_single_file(
-                ckpt_path, config=model_config, original_config=original_config_file, controlnet=controlnet,
+                ckpt_path, config=model_config, original_config=original_config_file, 
                 torch_dtype=torch.float16)
         except:
             try:
                 pipe = StableDiffusionXLPipeline.from_single_file(
                     ckpt_path, config=model_config, original_config_file=original_config_file, 
-                    controlnet=controlnet,
                     torch_dtype=torch.float16)
             except:
                 raise "load pipe error!,check you diffusers"
