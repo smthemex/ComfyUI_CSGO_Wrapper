@@ -8,7 +8,7 @@ Update
 
 **2024/09/07**
 * fix runway loader error, using single clip_vision weight now；
-* 修复runway跑路导致的diffuser加载报错，限制直接使用IP的SDXL 图片解码模型，请放在clip_vision目录下；
+* 修复runway跑路导致的diffuser加载报错，现在直接使用IP adapter的SDXL 图片解码单体模型，请放在clip_vision目录下；
 
 1.Installation
 -----
